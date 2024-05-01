@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+option go_package = "github.com/messx/go-grpc-playground/grpcscorer/grpcscorerprotos";
+
+package goscorerprotos;
+
+service Scorer {
+    rpc GetScore (ScoreRequest) returns (ScoreResponse) {}
+}
+
+message ScoreRequest {
+    string matchId = 1;
+}
+
+message ScoreResponse {
+    string matchId = 1;
+    string currentScore = 2;
+}
