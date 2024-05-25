@@ -23,6 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ScorerClient interface {
 	GetScore(ctx context.Context, in *ScoreRequest, opts ...grpc.CallOption) (*ScoreResponse, error)
+	StreamScore(ctx context.Context, in *ScoreRequest, opts ...grpc.CallOption) (Scorer_StreamScoreClient, error)
 }
 
 type scorerClient struct {
@@ -42,11 +43,44 @@ func (c *scorerClient) GetScore(ctx context.Context, in *ScoreRequest, opts ...g
 	return out, nil
 }
 
+func (c *scorerClient) StreamScore(ctx context.Context, in *ScoreRequest, opts ...grpc.CallOption) (Scorer_StreamScoreClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Scorer_ServiceDesc.Streams[0], "/goscorerprotos.Scorer/StreamScore", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &scorerStreamScoreClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Scorer_StreamScoreClient interface {
+	Recv() (*ScoreResponse, error)
+	grpc.ClientStream
+}
+
+type scorerStreamScoreClient struct {
+	grpc.ClientStream
+}
+
+func (x *scorerStreamScoreClient) Recv() (*ScoreResponse, error) {
+	m := new(ScoreResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // ScorerServer is the server API for Scorer service.
 // All implementations must embed UnimplementedScorerServer
 // for forward compatibility
 type ScorerServer interface {
 	GetScore(context.Context, *ScoreRequest) (*ScoreResponse, error)
+	StreamScore(*ScoreRequest, Scorer_StreamScoreServer) error
 	mustEmbedUnimplementedScorerServer()
 }
 
@@ -56,6 +90,9 @@ type UnimplementedScorerServer struct {
 
 func (UnimplementedScorerServer) GetScore(context.Context, *ScoreRequest) (*ScoreResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetScore not implemented")
+}
+func (UnimplementedScorerServer) StreamScore(*ScoreRequest, Scorer_StreamScoreServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamScore not implemented")
 }
 func (UnimplementedScorerServer) mustEmbedUnimplementedScorerServer() {}
 
@@ -88,6 +125,27 @@ func _Scorer_GetScore_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Scorer_StreamScore_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ScoreRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ScorerServer).StreamScore(m, &scorerStreamScoreServer{stream})
+}
+
+type Scorer_StreamScoreServer interface {
+	Send(*ScoreResponse) error
+	grpc.ServerStream
+}
+
+type scorerStreamScoreServer struct {
+	grpc.ServerStream
+}
+
+func (x *scorerStreamScoreServer) Send(m *ScoreResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // Scorer_ServiceDesc is the grpc.ServiceDesc for Scorer service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -100,6 +158,12 @@ var Scorer_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Scorer_GetScore_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "StreamScore",
+			Handler:       _Scorer_StreamScore_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "grpcscorerprotos/grpcscorer.proto",
 }
