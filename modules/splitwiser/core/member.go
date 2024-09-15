@@ -1,6 +1,6 @@
 package splitwiser
 
 type Member struct {
-	name string
-	id   string
+	Name string
+	Id   string
 }
