@@ -9,6 +9,7 @@ type ExpenseManager struct {
 	EGroup Group
 }
 
+// Method to create a breakdown of balances for each member
 func (expm *ExpenseManager) GetBreakDown() ([]Breakdown, error) {
 	log.Printf("Getting group expenses")
 	expenseMap := make(map[string]float32)
@@ -46,6 +47,7 @@ func (expm *ExpenseManager) GetBreakDown() ([]Breakdown, error) {
 	return expm.EGroup.breakdown, nil
 }
 
+// Recursive Method to create split balances for between the members
 func getRecSplitBalance(bdList []Breakdown, prevSplit []Split) ([]Split, error) {
 	allZero := true
 
